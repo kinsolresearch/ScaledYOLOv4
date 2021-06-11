@@ -243,7 +243,7 @@ def test(data,
         total_fp = 0
         total_fn = 0
         with open(error_path, 'w') as f:
-            f.write('path,num_false_pos, num_false_neg\n')
+            f.write('path,num_false_pos,num_false_neg\n')
             for path, (nfp, nfn) in error_cases.items():
                 f.write(f'{path},{nfp},{nfn}\n')
                 total_fp += nfp
