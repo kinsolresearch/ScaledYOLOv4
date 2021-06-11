@@ -366,7 +366,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
-            sa, sb = os.sep + 'images' + os.sep, os.sep + 'labels' + os.sep  # /images/, /labels/ substrings
+            sa, sb = os.sep + 'JPEGImages' + os.sep, os.sep + 'labels' + os.sep  # /images/, /labels/ substrings
             return [x.replace(sa, sb, 1).replace(x.split('.')[-1], 'txt') for x in img_paths]
 
         try:
@@ -389,7 +389,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         # Check cache
         self.label_files = img2label_paths(self.img_files)  # labels
-        cache_path = str(Path(self.label_files[0]).parent) + '.cache3'  # cached labels
+        cache_path = str(Path(self.label_files[0]).parent) + '.cache'  # cached labels
         if os.path.isfile(cache_path):
             cache = torch.load(cache_path)  # load
             if cache['hash'] != get_hash(self.label_files + self.img_files):  # dataset changed
@@ -521,7 +521,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 assert (shape[0] > 9) & (shape[1] > 9), 'image size <10 pixels'
                 if os.path.isfile(label):
                     with open(label, 'r') as f:
-                        l = np.array([x.split() for x in f.read().splitlines()], dtype=np.float32)  # labels
+                        l = np.array([x.split() for x in f.read().splitlines() if len(x) > 0], dtype=np.float32)  # labels
                 if len(l) == 0:
                     l = np.zeros((0, 5), dtype=np.float32)
                 x[img] = [l, shape]
