@@ -112,6 +112,7 @@ def test(data,
     p, r, f1, mp, mr, map50, map, t0, t1 = 0., 0., 0., 0., 0., 0., 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
+    error_cases = {}
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -218,7 +219,16 @@ def test(data,
                                     break
 
             # Append statistics (correct, conf, pcls, tcls)
-            stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
+            _correct, _conf, _pcls, _tcls = (correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls)
+            if opt.save_errors:
+                # Save error cases for 50% iou and 0.5 confidence
+                valid_preds = _conf > 0.2 
+                n_correct = _correct[valid_preds, 0].sum().item()
+                n_fp = valid_preds.sum().item() - n_correct
+                n_fn = len(tcls) - n_correct
+                if n_fp > 0 or n_fn > 0:
+                    error_cases[paths[si]] = (n_fp, n_fn)
+            stats.append((_correct, _conf, _pcls, _tcls))
 
         # Plot images
         if plots and batch_i < 3:
@@ -226,6 +236,19 @@ def test(data,
             plot_images(img, targets, paths, f, names)  # labels
             f = save_dir / f'test_batch{batch_i}_pred.jpg'
             plot_images(img, output_to_target(output, width, height), paths, f, names)  # predictions
+    
+    if opt.save_errors:
+        error_path = Path(save_dir) / 'error_cases.csv'
+        print(f'Saving error cases to {error_path}')
+        total_fp = 0
+        total_fn = 0
+        with open(error_path, 'w') as f:
+            f.write('path,num_false_pos, num_false_neg\n')
+            for path, (nfp, nfn) in error_cases.items():
+                f.write(f'{path},{nfp},{nfn}\n')
+                total_fp += nfp
+                total_fn += nfn
+        print(f'Got {total_fp} false positives and {total_fn} false negatives')
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
