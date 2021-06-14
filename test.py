@@ -220,7 +220,7 @@ def test(data,
 
             # Append statistics (correct, conf, pcls, tcls)
             _correct, _conf, _pcls, _tcls = (correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls)
-            if opt.save_errors:
+            if not training and opt.save_errors:
                 # Save error cases for 50% iou and 0.5 confidence
                 valid_preds = _conf > 0.2 
                 n_correct = _correct[valid_preds, 0].sum().item()
@@ -237,7 +237,7 @@ def test(data,
             f = save_dir / f'test_batch{batch_i}_pred.jpg'
             plot_images(img, output_to_target(output, width, height), paths, f, names)  # predictions
     
-    if opt.save_errors:
+    if not training and opt.save_errors:
         error_path = Path(save_dir) / 'error_cases.csv'
         print(f'Saving error cases to {error_path}')
         total_fp = 0
