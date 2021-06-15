@@ -62,6 +62,8 @@ def test(data,
         # Directories
         save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+        render_dir = save_dir / 'render'
+        render_dir.mkdir(exist_ok=True)
 
         # Load model
         model = Darknet(opt.cfg).to(device)
@@ -224,12 +226,14 @@ def test(data,
             _correct, _conf, _pcls, _tcls = (correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls)
             if not training and opt.save_errors:
                 # Save error cases for 50% iou and 0.5 confidence
-                valid_preds = _conf > 0.2 
+                valid_preds = _conf > 0.2
                 n_correct = _correct[valid_preds, 0].sum().item()
                 n_fp = valid_preds.sum().item() - n_correct
                 n_fn = len(tcls) - n_correct
                 if n_fp > 0 or n_fn > 0:
                     error_cases[paths[si]] = (n_fp, n_fn)
+                    f = render_dir / Path(paths[si]).name
+                    plot_images(img[[si]], output_to_target([output[si]], width, height), [f'#FP:{n_fp}, #FN:{n_fn}'], str(f), names)  # predictions
             stats.append((_correct, _conf, _pcls, _tcls))
 
         # Plot images
