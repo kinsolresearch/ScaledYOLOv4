@@ -33,11 +33,12 @@ RUN apt-get update && apt-get install -y apt-utils && apt-get -y dist-upgrade &&
 
 RUN ln -s /usr/bin/python${PYTHON_VER} /usr/bin/python
 
-RUN pip install --no-cache-dir torch==1.7.1+cu110 torchvision==0.8.2+cu110 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 
 WORKDIR $MY_ROOT
 # We have to install mish-cuda from source due to an issue with one of the header files
 ADD https://github.com/thomasbrandon/mish-cuda/archive/master.zip $MY_ROOT/mish-cuda.zip
+
 RUN unzip mish-cuda.zip && \
     cd $MY_ROOT/mish-cuda-master && \
     cp external/CUDAApplyUtils.cuh csrc/ && \
@@ -71,7 +72,7 @@ RUN apt-get update && apt-get install -y apt-utils python${PYTHON_VER}-dev && ap
 
 RUN ln -s /usr/bin/python${PYTHON_VER} /usr/bin/python
 
-RUN pip install --no-cache-dir torch==1.7.1+cu110 torchvision==0.8.2+cu110 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir  torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 
 # copy the mish_cuda Python package from the BUILD image into this one.
 COPY --from=BUILD /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda-0.0.3-py${PYTHON_VER}-linux-x86_64.egg/mish_cuda /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda
