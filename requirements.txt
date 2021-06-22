@@ -7,3 +7,4 @@ opencv-python
 matplotlib
 scipy
 pycocotools
+bump2version
