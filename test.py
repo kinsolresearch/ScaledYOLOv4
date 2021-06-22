@@ -258,6 +258,7 @@ def test(data,
         p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
+        
         #output to json for dvc metrics
         data = {"equal_error_rate":{"precision":eer_precision.mean(),
                                     "recall":eer_recall.mean(),
