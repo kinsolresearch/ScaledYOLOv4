@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch.nn.functional import threshold
 import yaml
 from tqdm import tqdm
 
@@ -15,7 +16,7 @@ from yolo.utils.datasets import create_dataloader
 from yolo.utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, box_iou, \
     non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, clip_coords, set_logging, increment_path
 from yolo.utils.loss import compute_loss
-from yolo.utils.metrics import ap_per_class
+from yolo.utils.metrics import ap_per_class, compute_eer_pr
 from yolo.utils.plots import plot_images, output_to_target
 from yolo.utils.torch_utils import select_device, time_synchronized
 
@@ -253,10 +254,19 @@ def test(data,
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
-        p, r, ap, f1, ap_class = ap_per_class(*stats, plot=plots, fname=save_dir / 'precision-recall_curve.png')
+        p, r, ap, f1, ap_class, eer_precision, eer_recall, threshold = ap_per_class(*stats, plot=plots, fname=save_dir / 'precision-recall_curve.png')
         p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
+        #output to json for dvc metrics
+        data = {"equal_error_rate":{"precision":eer_precision.mean(),
+                                    "recall":eer_recall.mean(),
+                                    "threshold":threshold.mean()},
+                "average_precision":map50}
+        filename = 'metrics/dev/metrics.json'
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'w+') as f:
+            json.dump(data, f, ensure_ascii=False)
     else:
         nt = torch.zeros(1)
 
