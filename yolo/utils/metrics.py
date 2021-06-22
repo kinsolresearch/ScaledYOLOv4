@@ -40,7 +40,7 @@ def fitness_f(x):
     return ((x[:, 0]*x[:, 1])/(x[:, 0]+x[:, 1]))
 
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-recall_curve.png'):
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-recall_curve.png', compute_eer=False):
     """ Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
@@ -92,9 +92,9 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
                 ap[ci, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
                 if j == 0:
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
-            
-            #confidence is reversed
-            eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(recall[:,0],precision[:,0],np.flip(conf[i]))
+            if compute_eer:
+                #confidence is reversed
+                eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(recall[:,0],precision[:,0],np.flip(conf[i]))
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)

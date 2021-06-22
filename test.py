@@ -40,6 +40,7 @@ def test(data,
          augment=False,
          verbose=False,
          metrics_path=None,
+         compute_eer=False,
          model=None,
          dataloader=None,
          save_dir=Path(''),  # for saving images
@@ -254,7 +255,7 @@ def test(data,
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
-        p, r, ap, f1, ap_class, eer_precision, eer_recall, threshold = ap_per_class(*stats, plot=plots, fname=save_dir / 'precision-recall_curve.png')
+        p, r, ap, f1, ap_class, eer_precision, eer_recall, threshold = ap_per_class(*stats, plot=plots, fname=save_dir / 'precision-recall_curve.png',compute_eer=compute_eer)
         p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
@@ -347,7 +348,8 @@ if __name__ == '__main__':
     parser.add_argument('--cfg', type=str, default='models/yolov4-csp.cfg', help='*.cfg path')
     parser.add_argument('--names', type=str, default='data/coco.names', help='*.cfg path')
     parser.add_argument('--save-errors', help='Save the error cases to file', action='store_true')
-    parser.add_argument('--path-for-metrics', help='Location for the dvc metrics json file to be saved', default='')
+    parser.add_argument('--path-for-metrics', help='Location for the dvc metrics json file to be saved', default=None)
+    parser.add_argument('--compute-eer', help='Compute equal error rate', action='store_true')
 
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
@@ -366,6 +368,7 @@ if __name__ == '__main__':
              opt.augment,
              opt.verbose,
              opt.path_for_metrics,
+             opt.compute_eer,
              save_txt=opt.save_txt,
              save_conf=opt.save_conf,
              )
