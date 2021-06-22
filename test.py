@@ -39,6 +39,7 @@ def test(data,
          single_cls=False,
          augment=False,
          verbose=False,
+         metrics_path=None,
          model=None,
          dataloader=None,
          save_dir=Path(''),  # for saving images
@@ -257,16 +258,16 @@ def test(data,
         p, r, ap50, ap = p[:, 0], r[:, 0], ap[:, 0], ap.mean(1)  # [P, R, AP@0.5, AP@0.5:0.95]
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
-        
-        #output to json for dvc metrics
-        data = {"equal_error_rate":{"precision":eer_precision.mean(),
-                                    "recall":eer_recall.mean(),
-                                    "threshold":threshold.mean()},
-                "average_precision":map50}
-        filename = 'metrics/dev/metrics.json'
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w+') as f:
-            json.dump(data, f, ensure_ascii=False)
+        if metrics_path is not None:
+            metrics_path = Path(metrics_path)
+            #output to json for dvc metrics
+            data = {"equal_error_rate":{"precision":eer_precision.mean(),
+                                        "recall":eer_recall.mean(),
+                                        "threshold":threshold.mean()},
+                    "average_precision":map50}
+            metrics_path.parent.mkdir(exist_ok=True, parents=True)
+            with open(metrics_path, 'w+') as f:
+                json.dump(data, f, ensure_ascii=False)
     else:
         nt = torch.zeros(1)
 
@@ -346,6 +347,8 @@ if __name__ == '__main__':
     parser.add_argument('--cfg', type=str, default='models/yolov4-csp.cfg', help='*.cfg path')
     parser.add_argument('--names', type=str, default='data/coco.names', help='*.cfg path')
     parser.add_argument('--save-errors', help='Save the error cases to file', action='store_true')
+    parser.add_argument('--path-for-metrics', help='Location for the dvc metrics json file to be saved', default='')
+
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
     opt.data = check_file(opt.data)  # check file
@@ -362,6 +365,7 @@ if __name__ == '__main__':
              opt.single_cls,
              opt.augment,
              opt.verbose,
+             opt.path_for_metrics,
              save_txt=opt.save_txt,
              save_conf=opt.save_conf,
              )

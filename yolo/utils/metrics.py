@@ -93,9 +93,8 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
                 if j == 0:
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
             
-            # remap precision and recall curves at iou .5 from objectness to confidence thresholds
-            remapped_precision, remapped_recall = np.interp(np.flip(-px), -conf[i], precision[:, 0]),np.interp(np.flip(-px), -conf[i], recall[:, 0])
-            eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(remapped_recall,remapped_precision)
+            #confidence is reversed
+            eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(recall[:,0],precision[:,0],np.flip(conf[i]))
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)
@@ -143,15 +142,16 @@ def compute_ap(recall, precision):
 
     return ap, mpre, mrec
 
-def compute_eer_pr(recalls,precisions):
+def compute_eer_pr(recalls,precisions,conf):
     """ Computes the equal error rate precision and recall from the precision and recall curves.
     # Arguments
-        recall:    Recall curve (n sized list of recalls along the recall curve, evaluated at equal intervals)
-        precision: Precision curve (n sized list of recalls along the recall curve, evaluated at equal intervals)
+        recall:    Recall curve (n sized list of recalls along the recall curve,)
+        precision: Precision curve (n sized list of recalls along the recall curve)
+        conf: list of confidences corresponding to each entry in the curves
     # Returns
         The equal error rate precison, recall, and thershold. Returns NaN if equal error rate could not be found (shouldn't happen with an actual classifier)
     """
     for i, (precision,recall) in enumerate(zip(precisions,recalls)):
         if recall >= precision:
-            return recall,precision,i/recalls.shape[0]
+            return recall,precision,conf[i]
     return float("NaN"),float("NaN"),float("NaN")
