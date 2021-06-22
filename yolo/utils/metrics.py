@@ -92,7 +92,10 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
                 ap[ci, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
                 if j == 0:
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
-            eer_precision[ci], eer_recall[ci],threshold[ci] = compute_eer_pr(np.interp(-px, -conf[i], recall[:, 0]),np.interp(-px, -conf[i], precision[:, 0]))
+            
+            # remap precision and recall curves at iou .5 from objectness to confidence thresholds
+            remapped_precision, remapped_recall = np.interp(np.flip(-px), -conf[i], precision[:, 0]),np.interp(np.flip(-px), -conf[i], recall[:, 0])
+            eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(remapped_recall,remapped_precision)
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)
@@ -143,14 +146,12 @@ def compute_ap(recall, precision):
 def compute_eer_pr(recalls,precisions):
     """ Computes the equal error rate precision and recall from the precision and recall curves.
     # Arguments
-        recall:    Recall curve (mxn list where n is the iou value that the curve is calculated at and m is the number of points in the recall curve)
-        precision: Precision curve (mxn list where n is the iou value that the curve is calculated at and m is the number of points in the precision curve)
-        iou: intersection over union value to calculate the equal error rate at, ranges from .5 to 1
+        recall:    Recall curve (n sized list of recalls along the recall curve, evaluated at equal intervals)
+        precision: Precision curve (n sized list of recalls along the recall curve, evaluated at equal intervals)
     # Returns
         The equal error rate precison, recall, and thershold. Returns NaN if equal error rate could not be found (shouldn't happen with an actual classifier)
     """
-   
     for i, (precision,recall) in enumerate(zip(precisions,recalls)):
-        if recall <= precision:
+        if recall >= precision:
             return recall,precision,i/recalls.shape[0]
     return float("NaN"),float("NaN"),float("NaN")
