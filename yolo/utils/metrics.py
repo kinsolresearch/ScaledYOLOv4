@@ -40,7 +40,7 @@ def fitness_f(x):
     return ((x[:, 0]*x[:, 1])/(x[:, 0]+x[:, 1]))
 
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-recall_curve.png'):
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-recall_curve.png', compute_eer=False):
     """ Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
@@ -66,6 +66,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
     pr_score = 0.1  # score to evaluate P and R https://github.com/ultralytics/yolov3/issues/898
     s = [unique_classes.shape[0], tp.shape[1]]  # number class, number iou thresholds (i.e. 10 for mAP0.5...0.95)
     ap, p, r = np.zeros(s), np.zeros(s), np.zeros(s)
+    eer_precision, eer_recall,threshold = np.zeros(unique_classes.shape[0]), np.zeros(unique_classes.shape[0]),np.zeros(unique_classes.shape[0])
     for ci, c in enumerate(unique_classes):
         i = pred_cls == c
         n_l = (target_cls == c).sum()  # number of labels
@@ -91,6 +92,9 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
                 ap[ci, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
                 if j == 0:
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
+            if compute_eer:
+                #confidence is reversed
+                eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(recall[:,0],precision[:,0],np.flip(conf[i]))
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)
@@ -108,7 +112,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
         fig.tight_layout()
         fig.savefig(fname, dpi=200)
 
-    return p, r, ap, f1, unique_classes.astype('int32')
+    return p, r, ap, f1, unique_classes.astype('int32'), eer_precision, eer_recall,threshold
 
 
 def compute_ap(recall, precision):
@@ -120,7 +124,6 @@ def compute_ap(recall, precision):
     # Returns
         The average precision as computed in py-faster-rcnn.
     """
-
     # Append sentinel values to beginning and end
     mrec = recall  # np.concatenate(([0.], recall, [recall[-1] + 1E-3]))
     mpre = precision  # np.concatenate(([0.], precision, [0.]))
@@ -138,3 +141,17 @@ def compute_ap(recall, precision):
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])  # area under curve
 
     return ap, mpre, mrec
+
+def compute_eer_pr(recalls,precisions,conf):
+    """ Computes the equal error rate precision and recall from the precision and recall curves.
+    # Arguments
+        recall:    Recall curve (n sized list of recalls along the recall curve,)
+        precision: Precision curve (n sized list of recalls along the recall curve)
+        conf: list of confidences corresponding to each entry in the curves
+    # Returns
+        The equal error rate precison, recall, and thershold. Returns NaN if equal error rate could not be found (shouldn't happen with an actual classifier)
+    """
+    for i, (precision,recall) in enumerate(zip(precisions,recalls)):
+        if recall >= precision:
+            return recall,precision,conf[i]
+    return float("NaN"),float("NaN"),float("NaN")
