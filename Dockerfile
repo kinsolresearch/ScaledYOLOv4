@@ -39,10 +39,12 @@ WORKDIR $MY_ROOT
 # We have to install mish-cuda from source due to an issue with one of the header files
 ADD https://github.com/thomasbrandon/mish-cuda/archive/master.zip $MY_ROOT/mish-cuda.zip
 
+# If you're running this on a GPU that has compute capabilty other than 6.1 or 8.6 mish_cuda needs to be built to target your architecture. 
+#Add your compute capability to the list below, you can find it here https://developer.nvidia.com/cuda-gpus
 RUN unzip mish-cuda.zip && \
     cd $MY_ROOT/mish-cuda-master && \
     cp external/CUDAApplyUtils.cuh csrc/ && \
-    python setup.py build install && \
+    TORCH_CUDA_ARCH_LIST="8.6 6.1" python setup.py build install && \
     cd $PKG_PATH && \
     rm -rf $MY_ROOT/mish-cuda-master
 

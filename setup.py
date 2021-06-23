@@ -12,7 +12,7 @@ install_requires = readlines('requirements.txt')
 
 setup(
     name='yolov4-csp',
-    version='1.2.0',
+    version='1.2.1',
     install_requires=install_requires,
     packages=find_namespace_packages(include=['yolo', 'yolo.*']),
     include_package_data=True,
