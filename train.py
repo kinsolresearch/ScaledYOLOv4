@@ -485,7 +485,7 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--model-output-dir', default=None, help='output the best model to this directory')
+    parser.add_argument('--model-output-dir', default=None, help='output the bestmodel to this directory so DVC can consistently find it')
 
     opt = parser.parse_args()
 
