@@ -43,8 +43,8 @@ except ImportError:
 
 def train(hyp, opt, device, tb_writer=None, wandb=None):
     logger.info(f'Hyperparameters {hyp}')
-    save_dir, epochs, batch_size, total_batch_size, weights, rank = \
-        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank
+    save_dir, epochs, batch_size, total_batch_size, weights, rank, model_output_dir = \
+        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank, opt.model_output_dir
 
     # Directories
     wdir = save_dir / 'weights'
@@ -407,6 +407,8 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                     torch.save(ckpt, wdir / 'best_{:03d}.pt'.format(epoch))
                 if best_fitness == fi:
                     torch.save(ckpt, wdir / 'best_overall.pt')
+                    if model_output_dir is not None:
+                        torch.save(ckpt, Path(model_output_dir) / 'best_overall.pt')
                 if best_fitness_p == fi_p:
                     torch.save(ckpt, wdir / 'best_p.pt')
                 if best_fitness_r == fi_r:
@@ -483,6 +485,8 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--model-output-dir', default=None, help='output the best model to this directory')
+
     opt = parser.parse_args()
 
     # Set DDP variables
