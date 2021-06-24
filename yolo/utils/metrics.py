@@ -93,8 +93,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, fname='precision-re
                 if j == 0:
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
             if compute_eer:
-                #confidence is reversed
-                eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(recall[:,0],precision[:,0],np.flip(conf[i]))
+                eer_precision[ci],eer_recall[ci],threshold[ci] = compute_eer_pr(recall[:,0],precision[:,0],conf[i])
 
     # Compute F1 score (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + 1e-16)
