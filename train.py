@@ -43,8 +43,8 @@ except ImportError:
 
 def train(hyp, opt, device, tb_writer=None, wandb=None):
     logger.info(f'Hyperparameters {hyp}')
-    save_dir, epochs, batch_size, total_batch_size, weights, rank = \
-        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank
+    save_dir, epochs, batch_size, total_batch_size, weights, rank, model_output_dir = \
+        Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank, opt.model_output_dir
 
     # Directories
     wdir = save_dir / 'weights'
@@ -123,7 +123,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
     if wandb and wandb.run is None:
         opt.hyp = hyp  # add hyperparameters
         wandb_run = wandb.init(config=opt, resume="allow",
-                               project='YOLOv4' if opt.project == 'runs/train' else Path(opt.project).stem,
+                               project='YOLOv4' if str(opt.project) == 'runs/train' else opt.project.stem,
                                name=save_dir.stem,
                                id=ckpt.get('wandb_id') if 'ckpt' in locals() else None)
 
@@ -317,7 +317,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                     #     tb_writer.add_graph(model, imgs)  # add model to tensorboard
                 elif plots and ni == 3 and wandb:
                     wandb.log({"Mosaics": [wandb.Image(str(x), caption=x.name) for x in save_dir.glob('train*.jpg')]})
-
+                    
             # end batch ------------------------------------------------------------------------------------------------
         # end epoch ----------------------------------------------------------------------------------------------------
 
@@ -407,6 +407,8 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                     torch.save(ckpt, wdir / 'best_{:03d}.pt'.format(epoch))
                 if best_fitness == fi:
                     torch.save(ckpt, wdir / 'best_overall.pt')
+                    if model_output_dir is not None:
+                        torch.save(ckpt, model_output_dir / 'best_overall.pt')
                 if best_fitness_p == fi_p:
                     torch.save(ckpt, wdir / 'best_p.pt')
                 if best_fitness_r == fi_r:
@@ -480,9 +482,11 @@ if __name__ == '__main__':
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
     parser.add_argument('--log-imgs', type=int, default=16, help='number of images for W&B logging, max 100')
     parser.add_argument('--workers', type=int, default=8, help='maximum number of dataloader workers')
-    parser.add_argument('--project', default='runs/train', help='save to project/name')
+    parser.add_argument('--project', default='runs/train', help='save to project/name',type=Path)
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--model-output-dir', default=None, help='output the bestmodel to this directory so DVC can consistently find it', type=Path)
+
     opt = parser.parse_args()
 
     # Set DDP variables
@@ -507,7 +511,7 @@ if __name__ == '__main__':
         assert len(opt.cfg) or len(opt.weights), 'either --cfg or --weights must be specified'
         opt.img_size.extend([opt.img_size[-1]] * (2 - len(opt.img_size)))  # extend to 2 sizes (train, test)
         opt.name = 'evolve' if opt.evolve else opt.name
-        opt.save_dir = increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok | opt.evolve)  # increment run
+        opt.save_dir = increment_path(opt.project / opt.name, exist_ok=opt.exist_ok | opt.evolve)  # increment run
 
     # DDP mode
     device = select_device(opt.device, batch_size=opt.batch_size)
