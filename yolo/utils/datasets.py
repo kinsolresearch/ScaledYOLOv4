@@ -354,7 +354,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
     def __init__(self, path, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, rank=-1):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, rank=-1, area_thresh=0.001):
         self.img_size = img_size
         self.augment = augment
         self.hyp = hyp
@@ -437,12 +437,17 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         # Check labels
         create_datasubset, extract_bounding_boxes, labels_loaded = False, False, False
-        nm, nf, ne, ns, nd = 0, 0, 0, 0, 0  # number missing, found, empty, datasubset, duplicate
+        nm, nf, ne, ns, nd, nx = 0, 0, 0, 0, 0, 0  # number missing, found, empty, datasubset, duplicate, deleted
         pbar = enumerate(self.label_files)
         if rank in [-1, 0]:
             pbar = tqdm(pbar)
         for i, file in pbar:
             l = self.labels[i]  # label
+            norm_areas = l[:, 3:].prod(axis=1)  # normalized bounding box areas
+            valid = norm_areas > area_thresh  # drop annotations that are too small, these are probably mistakes
+            l = l[valid]
+            nx += (~valid).sum()
+
             if l is not None and l.shape[0]:
                 assert l.shape[1] == 5, '> 5 label columns: %s' % file
                 assert (l >= 0).all(), 'negative labels: %s' % file
@@ -489,8 +494,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 # os.system("rm '%s' '%s'" % (self.img_files[i], self.label_files[i]))  # remove
 
             if rank in [-1, 0]:
-                pbar.desc = 'Scanning labels %s (%g found, %g missing, %g empty, %g duplicate, for %g images)' % (
-                    cache_path, nf, nm, ne, nd, n)
+                pbar.desc = 'Scanning labels %s (%g found, %g missing, %g empty, %g duplicate, %g dropped, for %g images)' % (
+                    cache_path, nf, nm, ne, nd, nx, n)
         if nf == 0:
             s = 'WARNING: No labels found in %s. See %s' % (os.path.dirname(file) + os.sep, help_url)
             print(s)
