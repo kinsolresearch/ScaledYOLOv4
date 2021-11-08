@@ -6,8 +6,12 @@
 # first image builds mish_cuda from source based on nvidia's CUDA dev
 # image.  The second copies the newly built mish_cuda into nvidia's
 # smaller CUDA runtime image.
+#
+# Note the pytorch CUDA architecture list is set to support cards with
+# compute capability version 6.1, 7.5, and 8.6, which covers
+# GeForce GTX 10xx, GTX 1650, RTX 20xx, and RTX 30xx
 
-FROM nvidia/cuda:11.1-cudnn8-devel-ubuntu20.04 as BUILD
+FROM nvidia/cuda:11.4.2-cudnn8-devel-ubuntu20.04 as BUILD
 
 ENV MY_ROOT=/workspace \
     PKG_PATH=/yolo_src \
@@ -15,7 +19,8 @@ ENV MY_ROOT=/workspace \
     PYTHON_VER=3.8 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=. \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    TORCH_CUDA_ARCH_LIST="6.1 7.5 8.6"
 
 WORKDIR $PKG_PATH
 
@@ -23,9 +28,7 @@ RUN apt-get update && apt-get install -y apt-utils && apt-get -y dist-upgrade &&
     apt-get install -y git libsnappy-dev libopencv-dev libhdf5-serial-dev libboost-all-dev libatlas-base-dev \
         libgflags-dev libgoogle-glog-dev liblmdb-dev curl unzip\
         python${PYTHON_VER}-dev && \
-    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python${PYTHON_VER} get-pip.py && \
-    rm get-pip.py && \
+    curl -fsSL https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER} && \
     # Clean UP
     apt-get autoremove -y && \
     apt-get autoclean -y && \
@@ -33,7 +36,7 @@ RUN apt-get update && apt-get install -y apt-utils && apt-get -y dist-upgrade &&
 
 RUN ln -s /usr/bin/python${PYTHON_VER} /usr/bin/python
 
-RUN pip install --no-cache-dir torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir torch==1.10.0+cu111 torchvision==0.11.1+cu111 torchaudio==0.10.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
 
 WORKDIR $MY_ROOT
 # We have to install mish-cuda from source due to an issue with one of the header files
@@ -44,12 +47,12 @@ ADD https://github.com/thomasbrandon/mish-cuda/archive/master.zip $MY_ROOT/mish-
 RUN unzip mish-cuda.zip && \
     cd $MY_ROOT/mish-cuda-master && \
     cp external/CUDAApplyUtils.cuh csrc/ && \
-    TORCH_CUDA_ARCH_LIST="8.6 6.1" python setup.py build install && \
+    python setup.py build install && \
     cd $PKG_PATH && \
     rm -rf $MY_ROOT/mish-cuda-master
 
 
-FROM nvidia/cuda:11.1-cudnn8-runtime-ubuntu20.04 as RUNTIME
+FROM nvidia/cuda:11.4.2-cudnn8-runtime-ubuntu20.04 as RUNTIME
 
 ENV MY_ROOT=/workspace \
     PKG_PATH=/yolo_src \
@@ -57,16 +60,15 @@ ENV MY_ROOT=/workspace \
     PYTHON_VER=3.8 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=. \
-    DEBIAN_FRONTEND=noninteractive 
+    DEBIAN_FRONTEND=noninteractive \
+    TORCH_CUDA_ARCH_LIST="6.1 7.5 8.6"
 
 WORKDIR $PKG_PATH
 
 RUN apt-get update && apt-get install -y apt-utils python${PYTHON_VER}-dev && apt-get -y dist-upgrade && \
     apt-get install -y git libsnappy-dev libopencv-dev libhdf5-serial-dev libboost-all-dev libatlas-base-dev \
         libgflags-dev libgoogle-glog-dev liblmdb-dev curl unzip && \
-    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python${PYTHON_VER} get-pip.py && \
-    rm get-pip.py && \
+    curl -fsSL https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER} && \
     # Clean UP
     apt-get autoremove -y && \
     apt-get autoclean -y && \
@@ -74,7 +76,7 @@ RUN apt-get update && apt-get install -y apt-utils python${PYTHON_VER}-dev && ap
 
 RUN ln -s /usr/bin/python${PYTHON_VER} /usr/bin/python
 
-RUN pip install --no-cache-dir  torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir  torch==1.10.0+cu111 torchvision==0.11.1+cu111 torchaudio==0.10.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
 
 # copy the mish_cuda Python package from the BUILD image into this one.
 COPY --from=BUILD /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda-0.0.3-py${PYTHON_VER}-linux-x86_64.egg/mish_cuda /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda
