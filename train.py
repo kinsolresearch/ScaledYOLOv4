@@ -15,6 +15,7 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import torch.utils.data
 import yaml
+import copy
 from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
@@ -53,11 +54,13 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
     best = wdir / 'best.pt'
     results_file = save_dir / 'results.txt'
 
+    opt_for_dump = copy.deepcopy(opt)
+    opt_for_dump.project = str(opt_for_dump.project)
     # Save run settings
     with open(save_dir / 'hyp.yaml', 'w') as f:
         yaml.dump(hyp, f, sort_keys=False)
     with open(save_dir / 'opt.yaml', 'w') as f:
-        yaml.dump(vars(opt), f, sort_keys=False)
+        yaml.dump(vars(opt_for_dump), f, sort_keys=False)
 
     # Configure
     plots = not opt.evolve  # create plots
@@ -503,7 +506,7 @@ if __name__ == '__main__':
         assert os.path.isfile(ckpt), 'ERROR: --resume checkpoint does not exist'
         with open(Path(ckpt).parent.parent / 'opt.yaml') as f:
             opt = argparse.Namespace(**yaml.load(f, Loader=yaml.FullLoader))  # replace
-        opt.cfg, opt.weights, opt.resume = '', ckpt, True
+        opt.weights, opt.resume =  ckpt, True
         logger.info('Resuming training from %s' % ckpt)
     else:
         # opt.hyp = opt.hyp or ('hyp.finetune.yaml' if opt.weights else 'hyp.scratch.yaml')
