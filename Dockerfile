@@ -1,7 +1,3 @@
-#FROM nvcr.io/nvidia/pytorch:20.06-py3
-#FROM continuumio/miniconda3
-#FROM gpuci/miniconda-cuda:11.0-devel-ubuntu20.04
-
 # We use a two-step build process here to reduce image size.  The
 # first image builds mish_cuda from source based on nvidia's CUDA dev
 # image.  The second copies the newly built mish_cuda into nvidia's
@@ -26,7 +22,7 @@ WORKDIR $PKG_PATH
 
 RUN apt-get update && apt-get install -y apt-utils && apt-get -y dist-upgrade && \
     apt-get install -y git libsnappy-dev libopencv-dev libhdf5-serial-dev libboost-all-dev libatlas-base-dev \
-        libgflags-dev libgoogle-glog-dev liblmdb-dev curl unzip\
+        libgflags-dev libgoogle-glog-dev liblmdb-dev curl unzip ninja-build \
         python${PYTHON_VER}-dev && \
     curl -fsSL https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER} && \
     # Clean UP
@@ -36,18 +32,20 @@ RUN apt-get update && apt-get install -y apt-utils && apt-get -y dist-upgrade &&
 
 RUN ln -s /usr/bin/python${PYTHON_VER} /usr/bin/python
 
-RUN pip install --no-cache-dir torch==1.10.0+cu111 torchvision==0.11.1+cu111 torchaudio==0.10.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
 
 WORKDIR $MY_ROOT
 # We have to install mish-cuda from source due to an issue with one of the header files
 ADD https://github.com/thomasbrandon/mish-cuda/archive/master.zip $MY_ROOT/mish-cuda.zip
 
-# If you're running this on a GPU that has compute capabilty other than 6.1 or 8.6 mish_cuda needs to be built to target your architecture. 
-#Add your compute capability to the list below, you can find it here https://developer.nvidia.com/cuda-gpus
+# If you're running this on a GPU that has compute capability other than
+# what is defined above, mish_cuda needs to be built to target your architecture. 
+# Add your compute capability to the definition of TORCH_CUDA_ARCH_LIST above,
+# you can find it here https://developer.nvidia.com/cuda-gpus
 RUN unzip mish-cuda.zip && \
     cd $MY_ROOT/mish-cuda-master && \
     cp external/CUDAApplyUtils.cuh csrc/ && \
-    python setup.py build install && \
+    pip install . && \
     cd $PKG_PATH && \
     rm -rf $MY_ROOT/mish-cuda-master
 
@@ -76,10 +74,10 @@ RUN apt-get update && apt-get install -y apt-utils python${PYTHON_VER}-dev && ap
 
 RUN ln -s /usr/bin/python${PYTHON_VER} /usr/bin/python
 
-RUN pip install --no-cache-dir  torch==1.10.0+cu111 torchvision==0.11.1+cu111 torchaudio==0.10.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
 
 # copy the mish_cuda Python package from the BUILD image into this one.
-COPY --from=BUILD /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda-0.0.3-py${PYTHON_VER}-linux-x86_64.egg/mish_cuda /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda
+COPY --from=BUILD /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda /usr/local/lib/python${PYTHON_VER}/dist-packages/mish_cuda
 
 # ADD https://drive.google.com/file/d/1NQwz47cW0NUgy7L3_xOKaNEfLoQuq3EL/view?usp=sharing /weights/yolov4-csp.weights
 ADD requirements.txt $PKG_PATH/requirements.txt
